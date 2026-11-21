@@ -11,12 +11,43 @@ app = Flask(__name__)
 app.secret_key = "clave-secreta-local-turismo-atlantico"
 
 
+def resumen_vacio():
+    return {
+        "total_registros": 0,
+        "total_municipios": 0,
+        "total_tipos": 0,
+    }
+
+
+def mapa_calor_vacio():
+    return {
+        "municipios": [],
+        "tipos": [],
+        "matriz": {},
+        "totales_municipio": {},
+        "totales_tipo": {},
+        "max_frecuencia": 0,
+        "total_general": 0,
+    }
+
+
 @app.route("/", methods=["GET"])
 def inicio():
     filtro = request.args.get("q", "").strip()
-    registros = consultar_registros(filtro)
-    resumen = obtener_resumen_numerico()
-    mapa_calor = obtener_datos_mapa_calor()
+    registros = []
+    resumen = resumen_vacio()
+    mapa_calor = mapa_calor_vacio()
+
+    try:
+        registros = consultar_registros(filtro)
+        resumen = obtener_resumen_numerico()
+        mapa_calor = obtener_datos_mapa_calor()
+    except Exception as error:
+        flash(
+            "No fue posible conectar con SQL Server. "
+            "Inicia el servicio y configura localhost/DatosAbiertosDB en el archivo .env.",
+            "error",
+        )
 
     return render_template(
         "index.html",
@@ -24,6 +55,7 @@ def inicio():
         filtro=filtro,
         resumen=resumen,
         mapa_calor=mapa_calor,
+        error_base_datos=str(error) if "error" in locals() else None,
     )
 
 
@@ -44,4 +76,4 @@ def sincronizar():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
