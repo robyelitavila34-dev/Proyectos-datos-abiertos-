@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atractivos Turísticos del Atlántico - Datos Abiertos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
+</head>
+<body>
+    <div class="contenedor">
+        <header class="encabezado">
+            <div>
+                <h1>Atractivos y Productos Turísticos del Atlántico</h1>
+                <p>Sistema Web MVC conectado a Datos Abiertos Colombia (2fsd-7enq) y SQL Server</p>
+            </div>
+            <form action="{{ url_for('sincronizar') }}" method="POST">
+                <button type="submit" class="btn-primario">Consultar API y guardar datos</button>
+            </form>
+        </header>
+
+        {% with mensajes = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensaje in mensajes %}
+                <div class="alerta alerta-{{ categoria }}">
+                    <strong>{{ categoria|upper }}:</strong> {{ mensaje }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+
+        <section class="resumen-grid">
+            <div class="tarjeta-metrica">
+                <span class="metrica-titulo">Total Atractivos Guardados</span>
+                <span class="metrica-valor">{{ resumen.total_registros }}</span>
+            </div>
+            <div class="tarjeta-metrica">
+                <span class="metrica-titulo">Municipios Registrados</span>
+                <span class="metrica-valor">{{ resumen.total_municipios }}</span>
+            </div>
+            <div class="tarjeta-metrica">
+                <span class="metrica-titulo">Tipos de Atractivo</span>
+                <span class="metrica-valor">{{ resumen.total_tipos }}</span>
+            </div>
+        </section>
+
+        <section class="bloque">
+            <div class="bloque-header">
+                <h2>Mapa de Calor por Frecuencia (Municipio vs. Tipo de Atractivo)</h2>
+                <div class="leyenda-calor">
+                    <span>Frecuencia: 0</span>
+                    <span class="escala-barra"></span>
+                    <span>{{ mapa_calor.max_frecuencia }} (Máx.)</span>
+                </div>
+            </div>
+
+            {% if mapa_calor.municipios %}
+                <div class="tabla-scroll">
+                    <table class="tabla-calor">
+                        <thead>
+                            <tr>
+                                <th>Municipio</th>
+                                {% for tipo in mapa_calor.tipos %}
+                                    <th>{{ tipo }}</th>
+                                {% endfor %}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for municipio in mapa_calor.municipios %}
+                                <tr>
+                                    <td class="celda-municipio">{{ municipio }}</td>
+                                    {% for tipo in mapa_calor.tipos %}
+                                        {% set freq = mapa_calor.matriz[municipio][tipo] %}
+                                        {% set intensidad = (freq / mapa_calor.max_frecuencia) if mapa_calor.max_frecuencia > 0 else 0 %}
+                                        {% set alfa = (0.08 + intensidad * 0.87) if freq > 0 else 0.03 %}
+                                        <td class="celda-calor"
+                                            style="background-color: rgba(15, 98, 254, {{ '%.2f'|format(alfa) }}); color: {{ '#ffffff' if intensidad > 0.52 else '#0f172a' }};">
+                                            {{ freq }}
+                                        </td>
+                                    {% endfor %}
+                                    <td class="celda-total">{{ mapa_calor.totales_municipio[municipio] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th>Total por Tipo</th>
+                                {% for tipo in mapa_calor.tipos %}
+                                    <th>{{ mapa_calor.totales_tipo[tipo] }}</th>
+                                {% endfor %}
+                                <th>{{ mapa_calor.total_general }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            {% else %}
+                <p class="texto-vacio">Aún no hay datos almacenados para generar el mapa de calor. Pulsa "Consultar API y guardar datos".</p>
+            {% endif %}
+        </section>
+
+        <section class="bloque">
+            <h2>Registros Almacenados en SQL Server</h2>
+            <form action="{{ url_for('inicio') }}" method="GET" class="form-busqueda">
+                <input type="text" name="q" value="{{ filtro }}" placeholder="Buscar por municipio, tipo o nombre del atractivo">
+                <button type="submit" class="btn-secundario">Buscar</button>
+                <a href="{{ url_for('inicio') }}" class="btn-limpiar">Limpiar</a>
+            </form>
+
+            <div class="tabla-scroll">
+                <table class="tabla-datos">
+                    <thead>
+                        <tr>
+                            <th>Municipio</th>
+                            <th>Tipo de Atractivo</th>
+                            <th>Nombre del Atractivo</th>
+                            <th>Lugar de Ubicación</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fila in registros %}
+                            <tr>
+                                <td>{{ fila.municipio }}</td>
+                                <td>{{ fila.tipo_de_atractivo }}</td>
+                                <td>{{ fila.nombre_atractivo }}</td>
+                                <td>{{ fila.lugar_ubicacion }}</td>
+                                <td>{{ fila.descripcion }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="texto-vacio">No hay registros para mostrar.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</body>
+</html>
